@@ -40,3 +40,4 @@ cypress/videos/
 cypress/screenshots/
 mochawesome-report/
 cypress/downloads/
+mochawesome.json
