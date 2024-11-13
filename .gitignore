@@ -33,3 +33,10 @@ yarn-error.log
 
 # Cypress specific files generated on test run
 cypress.env.json
+
+# Ignore test result files
+cypress/reports/
+cypress/videos/
+cypress/screenshots/
+mochawesome-report/
+cypress/downloads/

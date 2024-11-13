@@ -2,26 +2,71 @@ const { defineConfig } = require('cypress');
 const createBundler = require('@bahmutov/cypress-esbuild-preprocessor');
 const addCucumberPreprocessorPlugin = require('@badeball/cypress-cucumber-preprocessor').addCucumberPreprocessorPlugin;
 const createEsbuildPlugin = require('@badeball/cypress-cucumber-preprocessor/esbuild').default;
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+function deleteReportsFolder() {
+  const reportsPath = path.join(__dirname, 'cypress/reports');
+  if (fs.existsSync(reportsPath)) {
+    fs.readdirSync(reportsPath).forEach((file) => {
+      const curPath = path.join(reportsPath, file);
+      if (file !== 'merged-report.json' && fs.statSync(curPath).isFile()) {
+        console.log(`Deleting file: ${curPath}`);
+        fs.unlinkSync(curPath);
+      }
+    });
+  }
+}
 
 module.exports = defineConfig({
   e2e: {
-    async setupNodeEvents(on, config) {
+     setupNodeEvents(on, config) {
       const bundler = createBundler({ plugins: [createEsbuildPlugin(config)] });
       on('file:preprocessor', bundler);
-      await addCucumberPreprocessorPlugin(on, config);
+
+      on('before:run', () => {
+        deleteReportsFolder();
+      });
+
+      on('after:run', () => {
+        try {
+          execSync('npm run merge-report', { stdio: 'inherit' });
+        } catch (error) {
+          console.error('Failed to run the merge-report script:', error);
+        }
+      });
+
+      on('after:screenshot', (details) => {
+        console.log(`Screenshot taken: ${details.path}`);
+        try {
+          const videoPath = details.path
+            .replace('screenshots', 'videos')
+            .replace('.png', '.mp4');
+          console.log(`Video path: ${videoPath}`);
+        } catch (error) {
+          console.error('Error processing screenshot path:', error);
+        }
+      });
+
+       addCucumberPreprocessorPlugin(on, config);
       return config;
     },
     specPattern: 'cypress/e2e/**/*.cy.feature',
     supportFile: 'cypress/support/index.js',
     stepDefinitions: 'cypress/StepDefinitions/**/*.cy.js',
-    reporter: 'mochawesome',
+    reporter: "cypress-multi-reporters", 
     reporterOptions: {
-      reportDir: 'cypress/reports',
-      overwrite: false,
-      html: true,
-      json: true,
+      reporterEnabled: "mochawesome", 
+      mochawesomeReporterOptions: {
+        reportDir: "cypress/reports", 
+        overwrite: false, 
+        html: true, 
+        json: true,
+        inline: true, 
+      },
     },
-    viewportWidth: 1280,  // Set the viewport width
-    viewportHeight: 800, // Set the viewport height
+    viewportWidth: 1280,
+    viewportHeight: 800,
   },
 });
